@@ -956,7 +956,7 @@ useEffect(() => {
                       : platform,
                 )
               }
-
+const platformId = `platform-${Date.now()}`
               
 const newPlatform: Platform = {
   id: `platform-${Date.now()}`,
