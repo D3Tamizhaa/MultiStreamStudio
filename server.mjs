@@ -19,10 +19,12 @@ const DIST = path.join(
   'dist',
 )
 
-const MEDIA_DIR = path.join(
-  __dirname,
-  'uploads',
-)
+const MEDIA_DIR =
+  process.env.MEDIA_DIR ||
+  path.join(
+    __dirname,
+    'uploads',
+  )
 
 fs.mkdirSync(MEDIA_DIR, {
   recursive: true,
