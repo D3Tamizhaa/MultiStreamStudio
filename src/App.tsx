@@ -20,6 +20,11 @@ import {
   defaultSettings,
   defaultSources,
 } from './data/defaults'
+import {
+  getStreamStatus,
+  startStream,
+  stopStream,
+} from './api/streamApi'
 import type {
   AudioMonitoringMode,
   Platform,
@@ -27,6 +32,7 @@ import type {
   Scene,
   SettingsSection,
   Source,
+  StreamMetrics,
   StudioSettings,
 } from './types/studio'
 
@@ -266,6 +272,22 @@ const [audioMonitoringMode, setAudioMonitoringMode] =
   useState<AudioMonitoringMode>(
     savedStudioState.audioMonitoringMode,
   )
+const [streamMetrics, setStreamMetrics] =
+  useState<StreamMetrics>({
+    status: 'offline',
+    pid: null,
+    uptimeSeconds: 0,
+    bitrateKbps: 0,
+    fps: 0,
+    cpuPercent: 0,
+    ramPercent: 0,
+    ramMb: 0,
+    frame: 0,
+    speed: '0x',
+  })
+
+const [streamError, setStreamError] =
+  useState<string | null>(null)
 
   useEffect(() => {
   try {
@@ -562,7 +584,145 @@ setSettingsDraft((current) => ({
   setPage('settings')
   setSettingsSection('Stream')
 }
-  
+
+  async function refreshStreamStatus() {
+  try {
+    const metrics =
+      await getStreamStatus()
+
+    setStreamMetrics(metrics)
+
+    if (metrics.error) {
+      setStreamError(metrics.error)
+    }
+  } catch (error) {
+    console.error(
+      'Failed to refresh stream status:',
+      error,
+    )
+  }
+}
+
+async function handleStartStreaming() {
+  if (
+    streamMetrics.status === 'starting' ||
+    streamMetrics.status === 'streaming'
+  ) {
+    return
+  }
+
+  setStreamError(null)
+
+  setStreamMetrics((current) => ({
+    ...current,
+    status: 'starting',
+  }))
+
+  try {
+    const metrics =
+      await startStream({
+        scenes,
+        activeScene,
+        sources,
+        platforms,
+        settings,
+        audioVolume,
+        audioMuted,
+        audioMonitoringMode,
+      })
+
+    setStreamMetrics(metrics)
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to start streaming.'
+
+    console.error(
+      'Failed to start streaming:',
+      error,
+    )
+
+    setStreamError(message)
+
+    setStreamMetrics((current) => ({
+      ...current,
+      status: 'error',
+      error: message,
+    }))
+  }
+}
+
+async function handleStopStreaming() {
+  if (
+    streamMetrics.status !== 'streaming' &&
+    streamMetrics.status !== 'starting'
+  ) {
+    return
+  }
+
+  setStreamMetrics((current) => ({
+    ...current,
+    status: 'stopping',
+  }))
+
+  try {
+    const metrics =
+      await stopStream()
+
+    setStreamMetrics(metrics)
+    setStreamError(null)
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to stop streaming.'
+
+    console.error(
+      'Failed to stop streaming:',
+      error,
+    )
+
+    setStreamError(message)
+
+    setStreamMetrics((current) => ({
+      ...current,
+      status: 'error',
+      error: message,
+    }))
+  }
+}
+  useEffect(() => {
+  let cancelled = false
+
+  const update = async () => {
+    try {
+      const metrics =
+        await getStreamStatus()
+
+      if (!cancelled) {
+        setStreamMetrics(metrics)
+      }
+    } catch (error) {
+      console.error(
+        'Stream status request failed:',
+        error,
+      )
+    }
+  }
+
+  update()
+
+  const interval = window.setInterval(
+    update,
+    1000,
+  )
+
+  return () => {
+    cancelled = true
+    window.clearInterval(interval)
+  }
+}, [])
 
   if (!loggedIn) {
     return <LoginScreen onLogin={login} />
@@ -691,7 +851,12 @@ setSettingsDraft((current) => ({
         onEdit={editPlatform}
       />
 
-      <ControlsPanel />
+      <ControlsPanel
+  metrics={streamMetrics}
+  onStart={handleStartStreaming}
+  onStop={handleStopStreaming}
+/>
+
     </div>
   </div>
 
@@ -816,7 +981,8 @@ setSettingsDraft((current) => ({
     </div>
   )}
 </div>
-<UsageBar />
+<UsageBar metrics={streamMetrics} />
+
         </div>
         </div>
 
