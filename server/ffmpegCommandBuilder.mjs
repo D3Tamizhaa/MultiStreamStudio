@@ -33,6 +33,46 @@ function escapeFilterPath(value) {
     .replace(/'/g, "\\'")
 }
 
+function resolveFfmpegInput(
+  source,
+) {
+  const serverFile =
+    source.properties?.serverFile ||
+    source.properties?.file
+
+  if (!serverFile) {
+    return ''
+  }
+
+  /*
+   * Browser blob: URLs are never valid FFmpeg
+   * inputs because they only exist inside the browser.
+   */
+  if (
+    serverFile.startsWith('blob:')
+  ) {
+    throw new Error(
+      `Source "${source.name}" still contains a browser blob URL. Re-select the media file so it can be uploaded to the server.`,
+    )
+  }
+
+  /*
+   * Uploaded media is served by the same Node process.
+   * FFmpeg can consume the HTTP URL while the browser
+   * can also use /media/... for preview.
+   */
+  if (
+    serverFile.startsWith('/media/')
+  ) {
+    const port =
+      Number(process.env.PORT) || 3001
+
+    return `http://127.0.0.1:${port}${serverFile}`
+  }
+
+  return serverFile
+}
+
 function getPosition(source) {
   return {
     x: Number.isFinite(source.properties?.x)
@@ -251,7 +291,8 @@ export function buildFfmpegCommand({
     }
 
     if (source.type === 'media') {
-      const file = source.properties?.file
+      const file =
+  resolveFfmpegInput(source)
 
       if (!file) {
         continue
