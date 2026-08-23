@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import path from 'node:path'
+
 function parseResolution(value, fallback = '1920x1080') {
   const match = String(value || '').match(
     /^(\d+)x(\d+)$/,
@@ -45,31 +48,75 @@ function resolveFfmpegInput(
   }
 
   /*
-   * Browser blob: URLs are never valid FFmpeg
-   * inputs because they only exist inside the browser.
+   * Browser-only URLs can never be passed to FFmpeg.
    */
   if (
-    serverFile.startsWith('blob:')
+    serverFile.startsWith('blob:') ||
+    serverFile.startsWith('data:')
   ) {
     throw new Error(
-      `Source "${source.name}" still contains a browser blob URL. Re-select the media file so it can be uploaded to the server.`,
+      `Source "${source.name}" still contains a browser-only URL. Re-select the media file so it can be uploaded to the server.`,
     )
   }
 
   /*
-   * Uploaded media is served by the same Node process.
-   * FFmpeg can consume the HTTP URL while the browser
-   * can also use /media/... for preview.
+   * Uploaded media is physically stored in:
+   *
+   *   <project>/uploads/<uuid>.<ext>
+   *
+   * The browser sees:
+   *
+   *   /media/<uuid>.<ext>
+   *
+   * FFmpeg must receive the REAL filesystem path,
+   * not the browser URL.
    */
   if (
     serverFile.startsWith('/media/')
   ) {
-    const port =
-      Number(process.env.PORT) || 3001
+    const fileName =
+      serverFile
+        .slice('/media/'.length)
+        .split('?')[0]
 
-    return `http://127.0.0.1:${port}${serverFile}`
+    const safeFileName =
+      path.basename(fileName)
+
+    if (
+      !safeFileName ||
+      safeFileName !== fileName
+    ) {
+      throw new Error(
+        `Invalid media path for source "${source.name}".`,
+      )
+    }
+
+    const mediaDir = path.resolve(
+      process.env.MEDIA_DIR ||
+        path.join(
+          process.cwd(),
+          'uploads',
+        ),
+    )
+
+    const filePath = path.join(
+      mediaDir,
+      safeFileName,
+    )
+
+    if (!fs.existsSync(filePath)) {
+      throw new Error(
+        `Media file does not exist on the server: ${filePath}`,
+      )
+    }
+
+    return filePath
   }
 
+  /*
+   * Already-absolute filesystem paths can be
+   * passed through unchanged.
+   */
   return serverFile
 }
 
