@@ -1,5 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)  
 
 function parseResolution(value, fallback = '1920x1080') {
   const match = String(value || '').match(
@@ -47,9 +51,6 @@ function resolveFfmpegInput(
     return ''
   }
 
-  /*
-   * Browser-only URLs can never be passed to FFmpeg.
-   */
   if (
     serverFile.startsWith('blob:') ||
     serverFile.startsWith('data:')
@@ -59,18 +60,6 @@ function resolveFfmpegInput(
     )
   }
 
-  /*
-   * Uploaded media is physically stored in:
-   *
-   *   <project>/uploads/<uuid>.<ext>
-   *
-   * The browser sees:
-   *
-   *   /media/<uuid>.<ext>
-   *
-   * FFmpeg must receive the REAL filesystem path,
-   * not the browser URL.
-   */
   if (
     serverFile.startsWith('/media/')
   ) {
@@ -91,17 +80,25 @@ function resolveFfmpegInput(
       )
     }
 
-    const mediaDir = path.resolve(
+    const mediaDir =
       process.env.MEDIA_DIR ||
-        path.join(
-          process.cwd(),
-          'uploads',
-        ),
-    )
+      path.resolve(
+        __dirname,
+        '..',
+        'uploads',
+      )
 
-    const filePath = path.join(
-      mediaDir,
-      safeFileName,
+    const filePath =
+      path.join(
+        mediaDir,
+        safeFileName,
+      )
+
+    console.log(
+      '[FFmpeg] Resolving media:',
+      serverFile,
+      '→',
+      filePath,
     )
 
     if (!fs.existsSync(filePath)) {
@@ -113,10 +110,6 @@ function resolveFfmpegInput(
     return filePath
   }
 
-  /*
-   * Already-absolute filesystem paths can be
-   * passed through unchanged.
-   */
   return serverFile
 }
 
@@ -338,7 +331,7 @@ export function buildFfmpegCommand({
     }
 
     if (source.type === 'media') {
-      const file = resolveMediaFile(source)
+      const file = resolveFfmpegInput(source)
 
       if (!file) {
         continue
