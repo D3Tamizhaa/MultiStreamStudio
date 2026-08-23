@@ -256,7 +256,7 @@ export function buildFfmpegCommand({
 
   for (const source of activeSources) {
     if (source.type === 'image') {
-      const file = source.properties?.file
+      const file = resolveFfmpegInput(source)
 
       if (!file) {
         continue
