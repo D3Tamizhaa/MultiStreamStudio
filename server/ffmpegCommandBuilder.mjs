@@ -1,3 +1,15 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+const __dirname = path.dirname(
+  fileURLToPath(import.meta.url),
+)
+
+const MEDIA_DIR = path.join(
+  __dirname,
+  '..',
+  'uploads',
+)
+
 function parseResolution(value, fallback = '1920x1080') {
   const match = String(value || '').match(
     /^(\d+)x(\d+)$/,
@@ -45,8 +57,8 @@ function resolveFfmpegInput(
   }
 
   /*
-   * Browser blob: URLs are never valid FFmpeg
-   * inputs because they only exist inside the browser.
+   * Browser blob URLs only exist inside the browser.
+   * FFmpeg cannot access them.
    */
   if (
     serverFile.startsWith('blob:')
@@ -57,17 +69,33 @@ function resolveFfmpegInput(
   }
 
   /*
-   * Uploaded media is served by the same Node process.
-   * FFmpeg can consume the HTTP URL while the browser
-   * can also use /media/... for preview.
+   * Uploaded files are stored in:
+   *
+   *   <project>/uploads/<uuid>.<ext>
+   *
+   * The browser uses /media/<filename>, but FFmpeg
+   * should use the local filesystem path directly.
    */
   if (
     serverFile.startsWith('/media/')
   ) {
-    const port =
-      Number(process.env.PORT) || 3001
+    const fileName =
+      path.basename(serverFile)
 
-    return `http://127.0.0.1:${port}${serverFile}`
+    if (
+      !fileName ||
+      fileName !==
+        serverFile.slice('/media/'.length)
+    ) {
+      throw new Error(
+        `Invalid media path: ${serverFile}`,
+      )
+    }
+
+    return path.join(
+      MEDIA_DIR,
+      fileName,
+    )
   }
 
   return serverFile
@@ -292,7 +320,7 @@ export function buildFfmpegCommand({
 
     if (source.type === 'media') {
       const file =
-  resolveFfmpegInput(source)
+  const file = source.properties?.file
 
       if (!file) {
         continue
