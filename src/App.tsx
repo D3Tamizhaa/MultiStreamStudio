@@ -957,17 +957,22 @@ useEffect(() => {
                 )
               }
 
-              const newPlatform: Platform = {
-                id: `platform-${Date.now()}`,
-                name: platformName,
-                customName:
-                  stream.service === 'Custom'
-                    ? stream.customServiceName
-                    : undefined,
-                enabled: true,
-                server: stream.server,
-                streamKey: stream.streamKey,
-              }
+const newPlatform: Platform = {
+  id: `platform-${Date.now()}`,
+  name: platformName,
+  customName:
+    stream.service === 'Custom'
+      ? stream.customServiceName
+      : undefined,
+  enabled: true,
+  server: stream.server,
+  streamKey: stream.streamKey,
+  status: {
+    platformId: `platform-${Date.now()}`,
+    enabled: true,
+    connected: false,
+  },
+}
 
               setSelectedPlatform(newPlatform.id)
 
