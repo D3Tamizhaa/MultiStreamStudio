@@ -314,7 +314,7 @@ export function buildFfmpegCommand({
 
       filterParts.push(
         `[${currentVideo}]drawtext=` +
-          `fontfile=${escapeFilterPath(fontFamily)}:` +
+          `font='${escapeFilterText(fontFamily)}':` +
           `text='${escapeFilterText(text)}':` +
           `fontsize=${fontSize}:` +
           `fontcolor=${color}:` +
@@ -348,17 +348,19 @@ export function buildFfmpegCommand({
    * Source-specific audio routing will be added in the next
    * FFmpeg phase.
    */
-  args.push(
-    '-f',
-    'lavfi',
-    '-i',
-    'anullsrc=channel_layout=stereo:sample_rate=48000',
-  )
+const audioInputIndex = inputIndex
 
-  args.push(
-    '-map',
-    `${inputIndex}:a`,
-  )
+args.push(
+  '-f',
+  'lavfi',
+  '-i',
+  'anullsrc=channel_layout=stereo:sample_rate=48000',
+)
+
+args.push(
+  '-map',
+  `${audioInputIndex}:a`,
+)
 
   if (
     audioMuted ||
@@ -407,8 +409,6 @@ export function buildFfmpegCommand({
     sampleRate(settings.audio.sampleRate),
     '-ac',
     audioChannels(settings.audio.channels),
-    '-f',
-    'flv',
   )
 
   /*
@@ -416,14 +416,16 @@ export function buildFfmpegCommand({
    *
    * Disabled platforms are intentionally never added.
    */
-  for (const platform of enabledPlatforms) {
-    args.push(
-      '-map',
-      '[outv]',
-      '-map',
-      `${inputIndex}:a`,
-      buildOutputUrl(platform),
-    )
+const teeOutputs = enabledPlatforms.map(
+  (platform) =>
+    `[f=flv]${buildOutputUrl(platform)}`,
+)
+
+args.push(
+  '-f',
+  'tee',
+  teeOutputs.join('|'),
+)
   }
 
   return {
