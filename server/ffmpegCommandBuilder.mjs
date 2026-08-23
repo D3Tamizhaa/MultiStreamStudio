@@ -426,7 +426,6 @@ args.push(
   'tee',
   teeOutputs.join('|'),
 )
-  }
 
   return {
     args,
