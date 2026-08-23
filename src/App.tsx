@@ -956,7 +956,8 @@ useEffect(() => {
                       : platform,
                 )
               }
-
+const platformId = `platform-${Date.now()}`
+              
 const newPlatform: Platform = {
   id: `platform-${Date.now()}`,
   name: platformName,
@@ -974,9 +975,9 @@ const newPlatform: Platform = {
   },
 }
 
-              setSelectedPlatform(newPlatform.id)
+setSelectedPlatform(platformId)
 
-              return [...current, newPlatform]
+return [...current, newPlatform]
             })
           }
 
