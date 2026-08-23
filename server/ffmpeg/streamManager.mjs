@@ -54,11 +54,17 @@ class StreamManager {
       configuration,
     )
 
-    console.log(
-      'Starting FFmpeg:',
-      'ffmpeg',
-      command.args.join(' '),
+console.log(
+  'Starting FFmpeg:',
+  'ffmpeg',
+  command.args
+    .map((arg) =>
+      /\s/.test(arg)
+        ? JSON.stringify(arg)
+        : arg,
     )
+    .join(' '),
+)
 
     this.lastError = null
     this.metrics = {
