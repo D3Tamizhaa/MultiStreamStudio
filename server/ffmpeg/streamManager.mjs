@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { buildFfmpegCommand } from './ffmpegCommandBuilder.mjs'
+import { buildFfmpegCommand } from '../ffmpegCommandBuilder.mjs'
 
 class StreamManager {
   constructor() {
