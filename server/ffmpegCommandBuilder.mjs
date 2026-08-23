@@ -410,9 +410,6 @@ args.push(
 args.push(
   '-map',
   '[outv]',
-)
-
-args.push(
   '-map',
   `${audioInputIndex}:a`,
 )
