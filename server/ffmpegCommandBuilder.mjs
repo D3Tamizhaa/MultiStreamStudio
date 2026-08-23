@@ -338,7 +338,7 @@ export function buildFfmpegCommand({
     }
 
     if (source.type === 'media') {
-      const file = source.properties?.file
+      const file = resolveMediaFile(source)
 
       if (!file) {
         continue
