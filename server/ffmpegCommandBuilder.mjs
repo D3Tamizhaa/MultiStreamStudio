@@ -398,6 +398,20 @@ args.push(
   'anullsrc=channel_layout=stereo:sample_rate=48000',
 )
 
+filterParts.push(
+  `[${currentVideo}]scale=${outputWidth}:${outputHeight},fps=${fps},format=yuv420p[outv]`,
+)
+
+args.push(
+  '-filter_complex',
+  filterParts.join(';'),
+)
+
+args.push(
+  '-map',
+  '[outv]',
+)
+
 args.push(
   '-map',
   `${audioInputIndex}:a`,
