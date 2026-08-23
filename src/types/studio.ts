@@ -51,6 +51,7 @@ export interface Source {
   locked: boolean
   properties: {
     file?: string
+    serverFile?: string
     url?: string
 
     // Preview canvas position
