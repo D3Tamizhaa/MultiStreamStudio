@@ -14,6 +14,8 @@ COPY . .
 
 RUN npm run build
 
+RUN mkdir -p /app/uploads
+
 ENV FFMPEG_PATH=/usr/bin/ffmpeg
 
 EXPOSE 3001
