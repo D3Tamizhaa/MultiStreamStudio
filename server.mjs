@@ -2,6 +2,8 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { randomUUID } from 'node:crypto'
+import { pipeline } from 'node:stream/promises'
 
 import { streamManager } from './server/ffmpeg/streamManager.mjs'
 
@@ -16,6 +18,15 @@ const DIST = path.join(
   __dirname,
   'dist',
 )
+
+const MEDIA_DIR = path.join(
+  __dirname,
+  'uploads',
+)
+
+fs.mkdirSync(MEDIA_DIR, {
+  recursive: true,
+})
 
 function sendJson(
   res,
@@ -67,6 +78,157 @@ async function readJsonBody(req) {
   }
 
   return JSON.parse(body)
+}
+
+function getMediaContentType(
+  filePath,
+) {
+  const ext =
+    path.extname(filePath).toLowerCase()
+
+  const contentTypes = {
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.mov': 'video/quicktime',
+    '.mkv': 'video/x-matroska',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+    '.m4a': 'audio/mp4',
+    '.aac': 'audio/aac',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.bmp': 'image/bmp',
+  }
+
+  return (
+    contentTypes[ext] ||
+    'application/octet-stream'
+  )
+}
+
+function serveMedia(req, res) {
+  const prefix = '/media/'
+
+  if (!req.url.startsWith(prefix)) {
+    return false
+  }
+
+  const requestedName =
+    decodeURIComponent(
+      req.url
+        .slice(prefix.length)
+        .split('?')[0],
+    )
+
+  const fileName =
+    path.basename(requestedName)
+
+  if (
+    !fileName ||
+    fileName !== requestedName
+  ) {
+    res.writeHead(400)
+    res.end('Invalid media path')
+    return true
+  }
+
+  const filePath = path.join(
+    MEDIA_DIR,
+    fileName,
+  )
+
+  fs.stat(
+    filePath,
+    (error, stats) => {
+      if (error || !stats.isFile()) {
+        res.writeHead(404)
+        res.end('Media file not found')
+        return
+      }
+
+      res.writeHead(200, {
+        'Content-Type':
+          getMediaContentType(filePath),
+        'Content-Length':
+          String(stats.size),
+        'Cache-Control':
+          'no-store',
+        'Accept-Ranges': 'bytes',
+      })
+
+      fs.createReadStream(
+        filePath,
+      ).pipe(res)
+    },
+  )
+
+  return true
+}
+
+async function uploadMedia(
+  req,
+  res,
+) {
+  const originalName =
+    String(
+      req.headers['x-filename'] ||
+        'media',
+    )
+
+  const extension =
+    path
+      .extname(originalName)
+      .toLowerCase()
+
+  const allowedExtensions =
+    new Set([
+      '.mp4',
+      '.webm',
+      '.mov',
+      '.mkv',
+      '.mp3',
+      '.wav',
+      '.ogg',
+      '.m4a',
+      '.aac',
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.gif',
+      '.bmp',
+    ])
+
+  if (
+    extension &&
+    !allowedExtensions.has(extension)
+  ) {
+    throw new Error(
+      `Unsupported media extension: ${extension}`,
+    )
+  }
+
+  const fileName =
+    `${randomUUID()}${extension}`
+
+  const filePath =
+    path.join(
+      MEDIA_DIR,
+      fileName,
+    )
+
+  await pipeline(
+    req,
+    fs.createWriteStream(
+      filePath,
+    ),
+  )
+
+  return {
+    url: `/media/${fileName}`,
+  }
 }
 
 function serveStatic(req, res) {
@@ -163,6 +325,9 @@ function serveStatic(req, res) {
 
 const server = http.createServer(
   async (req, res) => {
+    const url =
+      req.url.split('?')[0]
+
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
         'Access-Control-Allow-Origin':
@@ -170,15 +335,47 @@ const server = http.createServer(
         'Access-Control-Allow-Methods':
           'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers':
-          'Content-Type',
+          'Content-Type, X-Filename',
       })
 
       res.end()
       return
     }
 
-    const url =
-      req.url.split('?')[0]
+    if (
+      req.method === 'POST' &&
+      url === '/api/media/upload'
+    ) {
+      try {
+        const result =
+          await uploadMedia(
+            req,
+            res,
+          )
+
+        sendJson(
+          res,
+          200,
+          {
+            ok: true,
+            ...result,
+          },
+        )
+      } catch (error) {
+        console.error(
+          'Media upload failed:',
+          error,
+        )
+
+        sendError(
+          res,
+          400,
+          error,
+        )
+      }
+
+      return
+    }
 
     /*
      * GET /api/stream/status
@@ -253,9 +450,9 @@ const server = http.createServer(
       return
     }
 
-    /*
-     * Everything else is the React/Vite build.
-     */
+  if (serveMedia(req, res)) {
+  return
+}
     serveStatic(req, res)
   },
 )
