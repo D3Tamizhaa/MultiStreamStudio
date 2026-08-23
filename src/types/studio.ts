@@ -87,6 +87,33 @@ export interface StudioSettings {
     password: string
   }
 
+  export type StreamStatus =
+  | 'offline'
+  | 'starting'
+  | 'streaming'
+  | 'stopping'
+  | 'error'
+
+export interface StreamMetrics {
+  status: StreamStatus
+  pid: number | null
+  uptimeSeconds: number
+  bitrateKbps: number
+  fps: number
+  cpuPercent: number
+  ramPercent: number
+  ramMb: number
+  frame: number
+  speed: string
+  error?: string
+}
+
+export interface StreamStartResponse {
+  ok: boolean
+  metrics: StreamMetrics
+  error?: string
+}
+
   stream: {
     service: PlatformName
     customServiceName: string
