@@ -79,6 +79,8 @@ export interface Platform {
   enabled: boolean
   server: string
   streamKey: string
+  status: PlatformStreamStatus
+  icon?: string
 }
 
 export interface StudioSettings {
@@ -114,11 +116,12 @@ export interface StudioSettings {
   video: {
     baseResolution: string
     outputResolution: string
-    fps: string
+    fps: string | number
   }
 
   advanced: {
     automaticallyReconnect: boolean
+    reconnectDelay?: number
     network: string
   }
 }
