@@ -179,18 +179,19 @@ const source: Source = {
   sceneId: existing?.sceneId ?? '',
   visible: existing?.visible ?? true,
   locked: existing?.locked ?? false,
-  properties: {
-    file,
-    url,
-    width: Number(width),
-    height: Number(height),
-    css,
-    loop,
-    fontFamily,
-    fontSize: Number(fontSize),
-    text,
-    color,
-  },
+properties: {
+  file,
+  serverFile: file,
+  url,
+  width: Number(width),
+  height: Number(height),
+  css,
+  loop,
+  fontFamily,
+  fontSize: Number(fontSize),
+  text,
+  color,
+},
 }
 
     onAdd(source)
