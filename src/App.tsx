@@ -585,22 +585,17 @@ setSettingsDraft((current) => ({
   setSettingsSection('Stream')
 }
 
-  async function refreshStreamStatus() {
-  try {
-    const metrics =
-      await getStreamStatus()
+async function refreshStreamStatus() {
+  const metrics =
+    await getStreamStatus()
 
-    setStreamMetrics(metrics)
-
-    if (metrics.error) {
-      setStreamError(metrics.error)
-    }
-  } catch (error) {
-    console.error(
-      'Failed to refresh stream status:',
-      error,
-    )
+  if (metrics.error) {
+    setStreamError(metrics.error)
+  } else {
+    setStreamError(null)
   }
+
+  return metrics
 }
 
 async function handleStartStreaming() {
@@ -692,17 +687,19 @@ async function handleStopStreaming() {
     }))
   }
 }
-  useEffect(() => {
+useEffect(() => {
   let cancelled = false
 
   const update = async () => {
     try {
       const metrics =
-        await getStreamStatus()
+        await refreshStreamStatus()
 
-      if (!cancelled) {
-        setStreamMetrics(metrics)
+      if (cancelled) {
+        return
       }
+
+      setStreamMetrics(metrics)
     } catch (error) {
       console.error(
         'Stream status request failed:',
@@ -851,8 +848,15 @@ async function handleStopStreaming() {
         onEdit={editPlatform}
       />
 
-      <ControlsPanel
-  metrics={streamMetrics}
+<ControlsPanel
+  metrics={
+    streamError
+      ? {
+          ...streamMetrics,
+          error: streamError,
+        }
+      : streamMetrics
+  }
   onStart={handleStartStreaming}
   onStop={handleStopStreaming}
 />
