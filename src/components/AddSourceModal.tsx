@@ -112,21 +112,64 @@ export function AddSourceModal({
     fileInputRef.current?.click()
   }
 
-  function handleFileChange(
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) {
-    const selectedFile = event.target.files?.[0]
+  async function uploadMediaFile(
+  selectedFile: File,
+): Promise<string> {
+  const response = await fetch('/api/media/upload', {
+    method: 'POST',
+    headers: {
+      'Content-Type':
+        selectedFile.type ||
+        'application/octet-stream',
+      'X-Filename': selectedFile.name,
+    },
+    body: selectedFile,
+  })
 
-    if (!selectedFile) return
+  const data = await response.json()
 
-    const objectUrl = URL.createObjectURL(selectedFile)
+  if (!response.ok || !data.ok) {
+    throw new Error(
+      data.error || 'Failed to upload media file.',
+    )
+  }
 
-    setFile(objectUrl)
+  return data.url
+}
+  
+async function handleFileChange(
+  event: React.ChangeEvent<HTMLInputElement>,
+) {
+  const selectedFile = event.target.files?.[0]
+
+  if (!selectedFile) {
+    return
+  }
+
+  try {
+    const uploadedUrl =
+      await uploadMediaFile(selectedFile)
+
+    setFile(uploadedUrl)
 
     if (!name.trim()) {
       setName(selectedFile.name)
     }
+  } catch (error) {
+    console.error(
+      'Media upload failed:',
+      error,
+    )
+
+    window.alert(
+      error instanceof Error
+        ? error.message
+        : 'Failed to upload media file.',
+    )
+
+    event.target.value = ''
   }
+}
 
   function submit() {
 const source: Source = {
